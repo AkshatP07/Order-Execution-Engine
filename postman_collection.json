@@ -1,0 +1,180 @@
+{
+  "info": {
+    "name": "DEX Order Execution Engine",
+    "description": "Collection for testing the DEX Order Execution Engine API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["health"]
+        },
+        "description": "Check if the server is running"
+      }
+    },
+    {
+      "name": "Execute Market Order - SOL to USDC",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userWallet\": \"7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU\",\n  \"tokenIn\": \"SOL\",\n  \"tokenOut\": \"USDC\",\n  \"amountIn\": 1.5,\n  \"orderType\": \"market\",\n  \"slippageBps\": 100\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/orders/execute",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "orders", "execute"]
+        },
+        "description": "Submit a market order to swap 1.5 SOL to USDC"
+      }
+    },
+    {
+      "name": "Execute Market Order - USDC to SOL",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userWallet\": \"9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM\",\n  \"tokenIn\": \"USDC\",\n  \"tokenOut\": \"SOL\",\n  \"amountIn\": 150,\n  \"orderType\": \"market\",\n  \"slippageBps\": 50\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/orders/execute",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "orders", "execute"]
+        },
+        "description": "Submit a market order to swap 150 USDC to SOL with 0.5% slippage"
+      }
+    },
+    {
+      "name": "Execute Large Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userWallet\": \"3eWJweftRzK9D7rCpnMHx6JXzm6WqsZq7xVQPXKc5Ub7\",\n  \"tokenIn\": \"SOL\",\n  \"tokenOut\": \"USDT\",\n  \"amountIn\": 25,\n  \"orderType\": \"market\",\n  \"slippageBps\": 200\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/orders/execute",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "orders", "execute"]
+        },
+        "description": "Submit a large market order with 2% slippage tolerance"
+      }
+    },
+    {
+      "name": "Execute Order - High Slippage",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userWallet\": \"BvzKvn6nUUAYtKu2pH3h5SbUkUNcRPQawg4bURBiojJx\",\n  \"tokenIn\": \"SOL\",\n  \"tokenOut\": \"USDC\",\n  \"amountIn\": 0.5,\n  \"orderType\": \"market\",\n  \"slippageBps\": 500\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/orders/execute",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "orders", "execute"]
+        },
+        "description": "Submit order with high slippage tolerance (5%)"
+      }
+    },
+    {
+      "name": "Invalid Order - Missing Fields",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userWallet\": \"7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU\",\n  \"tokenIn\": \"SOL\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/orders/execute",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "orders", "execute"]
+        },
+        "description": "Test validation error handling - missing required fields"
+      }
+    },
+    {
+      "name": "Invalid Order - Zero Amount",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userWallet\": \"7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU\",\n  \"tokenIn\": \"SOL\",\n  \"tokenOut\": \"USDC\",\n  \"amountIn\": 0\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/orders/execute",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "orders", "execute"]
+        },
+        "description": "Test validation error handling - zero amount"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

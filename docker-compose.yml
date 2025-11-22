@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: dex_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+  image: postgres:latest
+  container_name: dex_postgres
+  environment:
+    POSTGRES_USER: akshat
+    POSTGRES_PASSWORD: akshat
+    POSTGRES_DB: dex_orders
+  ports:
+    - "5432:5432"
+  volumes:
+    - postgres_data:/var/lib/postgresql
+    - ./src/db/migrations.sql:/docker-entrypoint-initdb.d/migrations.sql
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U akshat -d dex_orders"]
+    interval: 5s
+    timeout: 3s
+    retries: 5
+
+
+volumes:
+  redis_data:
+  postgres_data:
