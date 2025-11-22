@@ -1,158 +1,110 @@
-# Project Summary: DEX Order Execution Engine
+# Design Decisions
 
-## ✅ Project Deliverables
+This section briefly explains the key architectural decisions made while building the Order Execution Engine, and how the system satisfies all the core requirements of the task.
 
-### 1. Core Application Files
+## 1. Order Type Selection: Market Orders
 
-#### Configuration
-- ✅ `package.json` - All dependencies (Fastify, BullMQ, PostgreSQL, WebSocket)
-- ✅ `tsconfig.json` - TypeScript configuration
-- ✅ `jest.config.js` - Test configuration
-- ✅ `.env` - Environment variables (configured)
-- ✅ `.env.example` - Environment template
-- ✅ `.gitignore` - Git ignore rules
-- ✅ `docker-compose.yml` - Redis + PostgreSQL containers
+I selected **Market Orders** because they allow immediate execution, which makes it ideal for:
 
-#### Source Code
-- ✅ `src/index.ts` - Fastify server with WebSocket support
-- ✅ `src/api/orders.ts` - POST /api/orders/execute + WebSocket endpoint
-- ✅ `src/services/dexRouter.ts` - Mock DEX routing (Raydium/Meteora)
-- ✅ `src/services/orderService.ts` - Database + BullMQ queue operations
-- ✅ `src/services/wsManager.ts` - WebSocket connection management
-- ✅ `src/workers/executor.ts` - BullMQ worker with concurrency=10, retry=3
-- ✅ `src/db/migrations.sql` - PostgreSQL schema
+- Demonstrating the DEX router (Raydium vs Meteora)
+- Showing execution lifecycle through WebSockets
+- Keeping the system deterministic for evaluation
 
-### 2. Testing
-- ✅ `tests/dexRouter.test.ts` - 11 tests for DEX routing logic
-- ✅ `tests/wsManager.test.ts` - 8 tests for WebSocket lifecycle
-- ✅ `tests/orderLifecycle.test.ts` - 11 tests for order flow
-- ✅ **Total: 30 tests** covering routing, queue, WebSocket, validation, slippage
+### Extensibility
+- **Limit Orders:** Add a price-watcher service that polls DEX quotes and triggers processing when target price is reached.
+- **Sniper Orders:** Listen for Raydium/Meteora pool creation events and trigger instant execution.
 
-### 3. Documentation
-- ✅ `README.md` - Complete setup guide with architecture explanation
-- ✅ `QUICKSTART.md` - 5-minute quick start guide
-- ✅ `postman_collection.json` - 7 API request examples
-- ✅ `PROJECT_SUMMARY.md` - This file
+The engine’s internal worker system + routing logic already support both with minimal modification.
 
-## 🏗️ Architecture Implementation
+## 2. Single Endpoint Family (HTTP + WebSocket)
 
-### Tech Stack (As Required)
-- ✅ **Node.js + TypeScript** - Runtime and language
-- ✅ **Fastify** - Web framework with WebSocket plugin
-- ✅ **BullMQ** - Queue system
-- ✅ **Redis** - Queue backend (Docker)
-- ✅ **PostgreSQL** - Database (Docker)
-- ✅ **WebSocket** - Real-time status updates
+The system uses **one logical endpoint** as required:
 
-### Folder Structure (Exact Match)
-```
-src/
-├── index.ts              ✅ Fastify server entry point
-├── api/
-│   └── orders.ts         ✅ Order execution endpoint
-├── services/
-│   ├── dexRouter.ts      ✅ Mock DEX routing
-│   ├── orderService.ts   ✅ DB + queue operations
-│   └── wsManager.ts      ✅ WebSocket management
-├── workers/
-│   └── executor.ts       ✅ BullMQ worker
-└── db/
-    └── migrations.sql    ✅ Database schema
-```
+- `POST /api/orders/execute` → submits an order and returns `orderId`
+- `GET  /api/orders/execute/:orderId` → upgrades to a WebSocket connection
 
-## 🎯 Core Features
+This satisfies the requirement that a single endpoint family handles both order creation and live execution updates.
 
-### Order Type: Market Orders
-- ✅ Immediate execution at best available price
-- ✅ Documentation explaining why chosen
-- ✅ Extension strategy for limit/sniper orders documented
+## 3. DEX Router Design
 
-### DEX Routing
-- ✅ Mock Raydium quotes: `basePrice × (0.98 + random × 0.04)` with 0.3% fee
-- ✅ Mock Meteora quotes: `basePrice × (0.97 + random × 0.05)` with 0.2% fee
-- ✅ Automatic best price selection
-- ✅ Routing decisions logged
+The router compares prices from **Raydium** and **Meteora** using a mock implementation:
 
-### WebSocket Status Flow
-- ✅ `pending` → Order received and queued
-- ✅ `routing` → Comparing DEX prices
-- ✅ `building` → Creating transaction
-- ✅ `submitted` → Transaction sent to network
-- ✅ `confirmed` → Successful (includes txHash, executedPrice, amountOut)
-- ✅ `failed` → Error with failure reason
+- Both quotes include randomized variance (2–5%), simulating slippage/liquidity differences.
+- Router selects the best output amount.
+- Every routing decision is logged for transparency.
 
-### Concurrent Processing
-- ✅ BullMQ worker with concurrency = 10
-- ✅ Rate limit: 100 orders/minute
-- ✅ Exponential backoff retry (2s, 4s, 8s)
-- ✅ Maximum 3 retry attempts
+If extended to devnet, the router can directly integrate:
+- @raydium-io/raydium-sdk-v2  
+- @meteora-ag/dynamic-amm-sdk  
 
-### Error Handling
-- ✅ Slippage protection (configurable basis points)
-- ✅ Retry logic with exponential backoff
-- ✅ Error persistence in database
-- ✅ Graceful failure handling
+## 4. Real-Time WebSocket Lifecycle
 
-## 📊 Mock Implementation Details
+Every order has a clear lifecycle streamed over WebSockets:
 
-### No Blockchain Dependencies
-- ✅ NO Solana SDKs
-- ✅ NO Raydium SDK
-- ✅ NO Meteora SDK
-- ✅ NO RPC calls
-- ✅ Pure mock implementation
+pending → routing → building → submitted → confirmed/failed
 
-### Realistic Simulation
-- ✅ 2-3 second execution delay
-- ✅ 2-5% price variance between DEXs
-- ✅ Network delay simulation (150-250ms)
-- ✅ Random slippage within tolerance
-- ✅ 64-character mock transaction hashes
+Internally:
+- WebSocket connections are tracked using an in-memory registry.
+- Worker sends updates via a shared WebSocket manager.
+- Clients reconnect gracefully using orderId.
 
-## 🧪 Test Coverage
+This ensures real-time visibility of progress for all active orders.
 
-### DEX Router Tests (11)
-1. Valid Raydium quote generation
-2. Network delay simulation
-3. Price variance within range
-4. Valid Meteora quote generation
-5. Meteora lower fees than Raydium
-6. Fetch quotes from both DEXs
-7. Select best output amount
-8. Return valid DEX selection
-9. Execute swap with transaction details
-10. 2-3 second execution delay
-11. Slippage tolerance enforcement
-12. Unique transaction hash generation
+## 5. Concurrent Processing with BullMQ
 
-### WebSocket Tests (8)
-1. Register new connection
-2. Handle connection close
-3. Handle connection error
-4. Send status update
-5. Send status with payload
-6. Handle multiple status updates
-7. Handle non-existent connection
-8. Close connection properly
+The engine uses **BullMQ** with configurable concurrency (default: 10).
 
-### Order Lifecycle Tests (11)
-1. Status transition validation
-2. Failed state from any state
-3. Slippage calculation
-4. Slippage detection
-5. Exponential backoff calculation
-6. Retry limit enforcement
-7. Order field validation
-8. Amount validation
-9. DEX selection logic
-10. Concurrency handling
-11. Error categorization
+Benefits:
+- Parallel execution of multiple orders
+- Automatic retries with exponential backoff
+- Isolation between jobs
+- Durable queue backed by Redis
 
-Why I Chose This Order Type
+This meets the requirement of processing ~100 orders/minute.
 
-I implemented a Market Order because it is the simplest and fastest order type to execute in real-time. It immediately routes the trade to the DEX offering the best price, which allows the core execution engine, routing logic, and WebSocket status pipeline to be demonstrated clearly without additional constraints.
+## 6. Error Handling & Retries
 
-How This Engine Can Be Extended to Support the Other Two Order Types
+Each order can retry up to 3 times.
 
-The engine can support Limit Orders by adding a price-condition check inside the worker before execution (execute only when bestQuote.price ≥ targetLimitPrice).
-It can support Sniper Orders by periodically polling multiple DEXs inside the worker until a sudden price deviation appears, then executing instantly using the same swap pipeline.
+For every attempt:
+- attempt_number is logged in the `order_attempts` table
+- any failure is persisted for audit/debugging
+- WebSocket emits `failed` only when retries are exhausted
+
+This ensures transparency and reliability when DEX calls fail.
+
+## 7. Database Architecture
+
+Two tables:
+
+1. `orders` — stores the order and final execution metadata  
+2. `order_attempts` — logs each retry attempt  
+
+Benefits:
+- Full historical trace of execution
+- No data loss even if worker crashes
+- Easy debugging for routing/execution failures
+
+Triggers keep `updated_at` consistent automatically.
+
+## 8. Mock Execution (Meteora/Raydium)
+
+Execution is simulated with:
+- 2–3 second delay
+- Randomized execution price
+- Mock transaction hash
+
+This keeps the execution flow realistic while avoiding Solana devnet complexity.
+
+## 9. Deployment Decision: Render
+
+I deployed the system on Render because:
+- Free tier for PostgreSQL + Redis (Valkey)
+- Auto-scaling web service
+- Straightforward environment variable setup
+
+The public URL allows the reviewers to test:
+- POST order submission
+- WebSocket live streaming
+- Routing logs
+- Queue behaviour
