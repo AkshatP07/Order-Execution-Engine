@@ -4,6 +4,7 @@
  */
 
 import { WebSocket } from 'ws';
+import { getOrderById } from '../services/orderService';
 
 // Map orderId to WebSocket connection
 const orderConnections = new Map<string, WebSocket>();
@@ -11,10 +12,30 @@ const orderConnections = new Map<string, WebSocket>();
 /**
  * Register a WebSocket connection for an order
  */
-export function registerConnection(orderId: string, socket: WebSocket): void {
+export async function registerConnection(orderId: string, socket: WebSocket): Promise<void> {
   orderConnections.set(orderId, socket);
-  
   console.log(`[WS] Client connected for order ${orderId}`);
+
+  // ---- IMPORTANT FIX ----
+  // Send last known status immediately on connect
+  try {
+    const order = await getOrderById(orderId);
+
+    if (order) {
+      socket.send(
+        JSON.stringify({
+          orderId,
+          status: order.status,
+          message: "Restored last known status",
+          timestamp: new Date().toISOString(),
+        })
+      );
+
+      console.log(`[WS] Restored state for order ${orderId}: ${order.status}`);
+    }
+  } catch (err) {
+    console.error(`[WS] Failed to restore state for order ${orderId}:`, err);
+  }
 
   // Clean up on disconnect
   socket.on('close', () => {
