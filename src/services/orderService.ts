@@ -9,11 +9,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Database connection
 const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  user: process.env.POSTGRES_USER || 'akshat',
-  password: process.env.POSTGRES_PASSWORD || 'akshat',
-  database: process.env.POSTGRES_DB || 'dex_orders',
+  host: process.env.POSTGRES_HOST || process.env.PGHOST || 'localhost',
+  port: parseInt(process.env.POSTGRES_PORT || process.env.PGPORT || '5432'),
+  user: process.env.POSTGRES_USER || process.env.PGUSER || 'akshat',
+  password: process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || 'akshat',
+  database: process.env.POSTGRES_DB || process.env.PGDATABASE || 'dex_orders',
 });
 
 // BullMQ Queue
@@ -77,14 +77,18 @@ export async function createOrder(data: CreateOrderData): Promise<Order> {
   console.log(`[OrderService] Created order ${orderId}`);
 
   // Add to queue
-  await orderQueue.add('execute-order', { orderId }, {
-    delay:10000,
-    attempts: parseInt(process.env.QUEUE_MAX_RETRIES || '3'),
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-  });
+  await orderQueue.add(
+    'execute-order',
+    { orderId },
+    {
+      delay: 10000,
+      attempts: parseInt(process.env.QUEUE_MAX_RETRIES || '3'),
+      backoff: {
+        type: 'exponential',
+        delay: 2000,
+      },
+    }
+  );
 
   console.log(`[OrderService] Added order ${orderId} to queue`);
 
@@ -155,9 +159,7 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
   const query = 'SELECT * FROM orders WHERE id = $1';
   const result = await pool.query(query, [orderId]);
 
-  if (result.rows.length === 0) {
-    return null;
-  }
+  if (result.rows.length === 0) return null;
 
   return mapDbRowToOrder(result.rows[0]);
 }
@@ -183,7 +185,30 @@ export async function recordAttempt(
 }
 
 /**
- * Map database row to Order object
+ * NEW: Get attempts to replay history when reconnecting WS
+ */
+export async function getOrderAttempts(orderId: string): Promise<
+  Array<{
+    attempt_number: number;
+    status: string;
+    error_message: string | null;
+    dex_used: string | null;
+    attempted_at: Date;
+  }>
+> {
+  const query = `
+    SELECT attempt_number, status, error_message, dex_used, attempted_at
+    FROM order_attempts
+    WHERE order_id = $1
+    ORDER BY attempted_at ASC, attempt_number ASC
+  `;
+
+  const result = await pool.query(query, [orderId]);
+  return result.rows;
+}
+
+/**
+ * Map DB row → Order object
  */
 function mapDbRowToOrder(row: any): Order {
   return {
@@ -208,7 +233,7 @@ function mapDbRowToOrder(row: any): Order {
 }
 
 /**
- * Close database pool
+ * Close DB pool
  */
 export async function closePool(): Promise<void> {
   await pool.end();
