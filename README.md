@@ -13,6 +13,8 @@ Market orders provide immediate execution at the best available price, making th
 * **Sniper Orders:** Listen for token launch or migration events (Raydium/Meteora pool creation) and trigger instant execution.
 
 ---
+**video explaination**
+(https://www.youtube.com/watch?v=mSfU4-dh7bk)
 
 ## Architecture
 
