@@ -200,29 +200,62 @@ ws.onmessage = (event) => {
 
 ---
 
-## Testing
+## Using Render Deployment Instead of Local Setup
 
-Run tests:
+If you do **not** want to install PostgreSQL, Redis, or run Docker locally, you can directly use the hosted deployment on Render.
+
+### **Render Base URL**
+
+```
+https://order-execution-engine-jw99.onrender.com
+```
+
+### **Using Render in Postman**
+
+You can call the same API as local—simply replace the base URL:
+
+```
+POST https://order-execution-engine-jw99.onrender.com/api/orders/execute
+```
+
+Use the same request body.
+
+### **WebSocket (Render)**
+
+```
+wss://order-execution-engine-jw99.onrender.com/api/orders/execute/:orderId
+```
+
+### **Testing via Provided Script**
+
+In the repository, you will find an online‑enabled test client:
+
+📄 **render_test.js:**
+[https://github.com/AkshatP07/Order-Execution-Engine/blob/main/render_test.js](https://github.com/AkshatP07/Order-Execution-Engine/blob/main/render_test.js)
+
+This script automatically:
+
+* Creates an order on Render
+* Opens a WebSocket to Render
+* Streams all real-time execution updates
+
+Run it directly with:
+
+```bash
+node render_test.js
+```
+
+---
+
+## Local Testing Suite
+
+If you want to fully test the entire system on local (DEX routing, WebSocket, worker retries, database ops), a complete test suite has been prepared.
+
+Run all tests:
 
 ```bash
 npm test
 ```
-
-Watch mode:
-
-```bash
-npm run test:watch
-```
-
-Coverage includes:
-
-* DEX routing comparison
-* Queue concurrency and retries
-* WebSocket lifecycle
-* Order status transitions
-* Slippage handling
-* Database operations
-* Mock DEX Implementation
 
 ---
 
@@ -258,15 +291,8 @@ Router selects the best output.
 
 **Development**
 
-Build TypeScript:
-
 ```bash
 npm run build
-```
-
-Start production:
-
-```bash
 npm start
 ```
 
@@ -281,24 +307,6 @@ Stop services:
 ```bash
 npm run docker:down
 ```
-
----
-
-## Database Schema
-
-**Orders Table Fields**
-
-* id
-* status
-* selected_dex
-* quote_raydium
-* quote_meteora
-* executed_price
-* tx_hash
-
-**Order Attempts Table**
-
-* Tracks retries and failure reasons.
 
 ---
 
@@ -321,27 +329,3 @@ Prefixes:
 * [Worker]
 * [WS]
 
----
-
-## Key Features
-
-* Dual DEX routing
-* Real-time WebSocket updates
-* Concurrent processing
-* Retry logic
-* Slippage protection
-* Full history tracking
-* Mock implementation
-
----
-
-## License
-
-MIT
-
----
-
-## Design PDF
-
-Backend Task PDF (design & requirements):
-`/mnt/data/Backend Task 2_ Order Execution Engine.pdf`
